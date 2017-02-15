@@ -243,11 +243,11 @@ Each document in this Merkle-DAG has a specific purpose. Some parts of the struc
 
 The public parts of the HOC are published in a directory-like structure with a content-address in its path. Two parts have fixed names (`proof.json` and `proof.sig`), while all the other parts names are consistent with their content-addresses (meaning the file name is equivalent to the IPFS address of the file contents).
 
-Content-addressing is consistent with the IPFS content-addresses format, for example `QmNn2peeUaJFxnPVsFjriVxnPZKkh4y2EfRqpEHQ8EYXQr`. Content addresses may refer to individual files or directory-like collections of files (and subdirectories, recursively).
+Content-addressing is consistent with the IPFS content-addresses format, for example `QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2`. Content addresses may refer to individual files or directory-like collections of files (and subdirectories, recursively).
 
 The following examples assume that this address is the address of the directory-like structure that has been gazetted in the blockchain:
 
- * `/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/`
+ * `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/`
 
 
 ## HOC Proof
@@ -274,11 +274,11 @@ To ensure efficient auditability of notaries, an independent observer should be 
 
 The first step in validating the Merkle-Dag is to check that the proof.json exists and is no larger than MAX_SIZE.
 
-For example, assuming the blockchain contains `/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/`, the validation begins with:
+For example, assuming the blockchain contains `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/`, the validation begins with:
 
- * test for the existence of `/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/proof.json`
+ * test for the existence of `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/proof.json`
  * if the proof.json is larger than `MAX_SIZE`, it is not valid. There is no need to download more than `MAX_SIZE + 1 byte` in this step.
- * test for the existence of `/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/proof.sig`
+ * test for the existence of `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/proof.sig`
  * if the proof.sig is larger than `MAX_SIZE`, it is not valid. There is no need to download more than `MAX_SIZE + 1 byte` in this step.
 
 If `proof.json` and `proof.sig` both exist and neither exceed MAX_SIZE, the next step is to ensure that `proof.json` validates agains the json schema. Assuming `proof.json` and [`proof.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/proof.schema) are both in the current working directory, the `jsonschema` program could be used like this:
@@ -328,8 +328,8 @@ The HOC Header is processed after the HOC Proof has been validated. It is essent
  * Each element in `hoc_head` list MUST contain a `network` attribute.
  * The value of `network` attribute MUST be a valid business identifier URN per the DCP and DCL specifications.
  * Each element in `hoc_head` list MUST contain an `ac_code` attribute.
- * The HOC Header MAY be published directly with its content-address (e.g. `/ipfs/QmNn2peeUaJFxnPVsFjriVxnPZKkh4y2EfRqpEHQ8EYXQr`).
- * The HOC Header MUST be published with its content-address as its name within the directory-like collection that was gazetted to the blockchain (e.g. `/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/QmNn2peeUaJFxnPVsFjriVxnPZKkh4y2EfRqpEHQ8EYXQr`).
+ * The HOC Header MAY be published directly with its content-address (e.g. `/ipfs/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`).
+ * The HOC Header MAY be published with its content-address as its name within the directory-like collection that was gazetted to the blockchain (e.g. `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`).
 
 The `ac_code` partially defines the protocol for accessing the record referenced in the `hoc_detail` attribute. The meaning of the `ac_code` is dependent on the `network`. In other words, the `ac_code` is interpreted in the context of the `network`.
 
@@ -362,8 +362,8 @@ If the `network` is equal to the `proof.json` NOTARY, or if the DCL lookup of RE
 
 If `ac_code` is 0 or 1:
 
- * If the `hoc_header` item `durability` is a future date, the content-address MUST be directly available (for example `/ipfs/QmNn2peeUaJFxnPVsFjriVxnPZKkh4y2EfRqpEHQ8EYXQr`
- * If the `hoc_header` item `durability` is a future date, and the `proof.json` `durability` is also a future date, the content address MUST be available within the directory-like container of the Full HOC (for example `/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/QmNn2peeUaJFxnPVsFjriVxnPZKkh4y2EfRqpEHQ8EYXQr`)
+ * If the `hoc_header` item `durability` is a future date, the content-address MUST be directly available (for example `/ipfs/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`
+ * If the `hoc_header` item `durability` is a future date, and the `proof.json` `durability` is also a future date, the content address MAY be available within the directory-like container of the Full HOC (for example `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`)
 
 
 If `ac_code` is 2 or 3:
