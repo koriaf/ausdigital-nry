@@ -21,43 +21,43 @@ Gateway that it uses.
 Facilitate features in the TAP protocol that:
 
  * Prevent post-hoc "Fraud of Commission" (retrospective creation of false document history).
- * Prevent post-hoc "Fraud of Ommission" (surrupticious destruction of legitimate document history).
+ * Prevent post-hoc "Fraud of Omission" (surreptitious destruction of legitimate document history).
 
 
 Balance information security with utility:
 
  * Sufficient public data for transaction stakeholders to independently verify integrity of shared-secret documents.
  * Information from private documents is not leaked into the public domain, even in a future where tools exist to overcome contemporary cryptographic methods.
- * Ensure notarised object sources are identified (to a known and meaningfull level of identity assurance), but do not leak information about subjects that could be used to anlayse communication or transaction traffic.
- * Publically auditable (transparent), to enalble notary reputation to be based on independent performance evaluation using transparent, non-repudiable and objective data. In adition to the relevent data being open, the cost of monitoring and verifying the activities of a notary must not be prohibitive.
+ * Ensure notarised object sources are identified (to a known and meaningful level of identity assurance), but do not leak information about subjects that could be used to analyse communication or transaction traffic.
+ * Publically auditable (transparent), to enable notary reputation to be based on independent performance evaluation using transparent, non-repudiable and objective data. In addition to the relevant data being open, the cost of monitoring and verifying the activities of a notary must not be prohibitive.
 
 
 Sustainable and secure infrastructure:
 
- * Socially responsible, blockchain-efficient public storage of existance proofs. This means low externalised community cost (impact on the shared ledger) even if a very large number of objects are notarised in a given time frame.
+ * Socially responsible, blockchain-efficient public storage of existence proofs. This means low externalised community cost (impact on the shared ledger) even if a very large number of objects are notarised in a given time frame.
  * Leverage the strongest consensus product available (maximise resistance to Sybl attacks).
  * Leverage the most efficient proof market available (minimise cost of proof at the given consensus-strength).
- * Avoid single point of failure in the network that stores and distributes existance proof.
+ * Avoid single point of failure in the network that stores and distributes existence proof.
 
 
 These are achieved by:
 
  * Notarising all objects (in a timeframe) into a proscribed Merkle-DAG data structure that is pegged to the Blockchain with a single record, which references a minimal signed proof document that can be verified before accessing a significant data volumes.
  * Distributing the pegged Merkle-DAG proof structure with a decentralised, content-addressable memory system (modelled on and compatible with the Inter Planetary File System, IPFS).
- * Avoid propietary blockchains. Adopt the largest public blockchain with the highest market capitalisation (BitCoin), thereby sourcing work-proof from an open market of commodity mining services and multiple open source -oftwaresimplementations.
+ * Avoid proprietary blockchains. Adopt the largest public blockchain with the highest market capitalisation (BitCoin), thereby sourcing work-proof from an open market of commodity mining services and multiple open source softwares implementations.
 
 
 
 ## Status
 
-This spec is an early draft for consuiltation.
+This spec is an early draft for consultation.
 
 This specification aims to support the Australian Digital Business Council
 [eInvoicing initiative](http://ausdigital.org), and is under active
 development at
 [https://github.com/ausdigital/ausdigital-nry](https://github.com/ausdigital/notary).
 
-Comments and feedback are encouraged and welcome. Pull requests with improvements are welome too.
+Comments and feedback are encouraged and welcome. Pull requests with improvements are welcome too.
 
 
 ## Glossary
@@ -105,16 +105,18 @@ RFC 2119.
 
 # Application Programming Interface
 
-The notary MUST privide a REST/JSON API, which can be used for two purposes:
+The notary MUST provide a REST API, which can be used for two purposes:
 
  * POST methods that task the notary with notarising a digital record (this may or may not involve storing the object in the notary's archive).
  * GET methods that access notarised data from the notary's archive (this may or may not require authentication, and may or may not be subject to content-based access control rules)
 
-Perhaps unsurprisingly, the notary API does not generally furnish any PUT, PATCH or DELETE methods. Notary records are imutable until disposal, which is scheduled at the time of notarisation.
+Current API format is described using http://jsonapi.org/ for unification.
 
-Notary records are addative; the only way to change the parameters of notarisation is to make a subsequent notarisation request with different parameters (the notary will meet obligations of both requests).
+Perhaps unsurprisingly, the notary API does not generally furnish any PUT, PATCH or DELETE methods. Notary records are immutable until disposal, which is scheduled at the time of notarisation.
 
-The notary API is comprised of two REST/JSON resources, `/public/` and `/private/`. These work in similar ways, but have different access control rules. Separate endpoints are used (rather than a parameter) to minimise risk of accidentialy publishing private objects ("poka-yolk" principle).
+Notary records are additive; the only way to change the parameters of notarisation is to make a subsequent notarisation request with different parameters (the notary will meet obligations of both requests).
+
+The notary API is comprised of two REST/JSON resources, `/public/` and `/private/`. These work in similar ways, but have different access control rules. Separate endpoints are used (rather than a parameter) to minimise risk of accidentally publishing private objects ("poka-yolk" principle).
 
 Implementations  MAY be allow users to restrict client access to one or the other endpoint on a per-API token basis.
 
@@ -139,7 +141,7 @@ The Notary API is a REST/JSON protocol, layered on HTTP. Implementations:
 
 ## POST object to Notary
 
-The POST verb is used to request notarisation. The posted body contains two parts, `object` and `parameters`.
+The POST verb is used to request notarisation. The posted body encoded as `multipart/form-data` and contains two parts, `object` and `parameters`. Optionally object content-type and filename may be provided, which is helpful for downloading objects from notarizer.
 
 Posting an object to the `/public/` or `/private/` notary resource causes the notary business to incur cost and obligation. The notary may refuse, or may agree under commercial terms. For this reason, POST requests always must be authenticated with a JWT header issued under the `ausdigital-idp/1` specification.
 
@@ -156,39 +158,40 @@ curl -X POST \
 
 (Replace <NRY_URL> with HTTPS URL discovered from the Digital Capability Publisher of the business providing the Notary Service, and replace <API_TOKEN> with the JWT issued by the `ausdigital-idp/1` Identity Provider).
 
-The protocol places no physical restriction on the `object.foo` POSTed to the notary API, however there may be some practical limits from the underlying HTTP infrustructure. For example, there may be some limit to the maximum file size than can be reliably POSTed.
+The protocol places no physical restriction on the `object.foo` POSTed to the notary API, however there may be some practical limits from the underlying HTTP infrastructure. For example, there may be some limit to the maximum file size than can be reliably POSTed. Please consult implementation-specific limits of the target notarizer installation.
 
 The `param.json` file:
 
- * MUST be a JSON file that is valid per [`nry_post_param.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/nry_post_param.schema) JSON schema.
- * MUST contain a `durability` attribute that is an ISO 8601 formatted date string
- * The `durability` date MUST be not less than one month in the future
- * MUST contain a `network` attribute that is a valid business identifier URN per `ausdigital-dcp/1` specification.
- * MUST contain an `ac_code` attribute, that is a non-negative integer.
- * MAY contain an `restrict_list` attribute, that is a JSON list of zero or more elements that are valid business identifier URNs per `ausdigital-dcp/1`.
- * If the `network` value is a business identifier of the notary itself, then the `ac_code` MUST be interpreted per `ausdigital-nry/1`.
- * If the `network` value is not a business identifier of the notary, the `ac_code` MAY be interpreted as `ac_code` = 3.
- * If the `network` value is not a business identifier of the notary, the notary MAY silently fail to store the notarised object.
- * If the `network` value is not a business identifier of the notary, the Notary API resource must be `/private/` (alternate `network`s MUST NOT be used with the `/public/` resource).
- * If the Notary API resource is `/public/`, the `ac_code` must be 0.
- * If the `ac_code` is 1, 2 or 3 (or may be interpreted as 3), the Notary API resource must be '/private/'.
+* MUST be a JSON file that is valid per [`nry_post_param.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/nry_post_param.schema) JSON schema.
+* MUST contain a `durability` attribute that is an ISO 8601 formatted datetime string with timezone
+* The `durability` date MUST be not less than one month in the future
+* MUST contain a `network` attribute that is a valid business identifier URN per `ausdigital-dcp/1` specification.
+* MUST contain an `ac_code` attribute, that is a non-negative integer for the given specification.
+* MAY contain an `restrict_list` attribute, that is a JSON list of zero or more elements that are valid business identifier URNs per `ausdigital-dcp/1`.
+* If the `network` value is a business identifier of the notary itself, then the `ac_code` MUST be interpreted per `ausdigital-nry/1`.
+* If the `network` value is not a business identifier of the notary:
+    * the `ac_code` MAY be interpreted as `ac_code` = 3.
+    * the notary MAY silently fail to store the notarised object.
+    * the Notary API resource must be `/private/` (alternate `network`s MUST NOT be used with the `/public/` resource).
+* For given `ac_code` object `private` or `public` namespace must be equal to described in ac_code table in "HOC Header" section.
 
 
-When the notary recieves a valid notarisation request, if it does not refuse the request and does not experience technical difficulties, then it MUST:
+When the notary receives a valid notarisation request, if it doesn't refuse the request and doesn't experience technical difficulties, then it MUST:
 
  * place notarised object in a system of record (unless the `param.json` `network` value is not a business identifier of the notary, in which case the notary MAY place the notarised object in a system of record)
- * reference API Spec (return HTTP 200 response code, headers, etc)
+ * reference API Spec (return HTTP 201 CREATED response code, headers, etc)
  * return HTTP body that is JSON document that is valid per [`nry_post_response.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/nry_post_response.schema) JSON schema.
- * The body must contain a `doc_id` attribute containing a verifyable content-address of the notarised object, using a hash and encoding scheme that is a valid IPFS address.
+ * The body must contain a `doc_id` attribute containing a verifiable content-address of the notarised object, using a hash and encoding scheme that is a valid IPFS address.
 
 
-When the notary recieves an invalid notarisation request, or if it recieves a valid request that it choses to refuse, or if it experiences technical difficulties, then it:
+When the notary receives an invalid notarisation request, or if it receives a valid request that it choses to refuse, or if it experiences technical difficulties, then it:
 
- * MUST return an appropriate HTTP response code (see swagger specification)
+ * MUST return an appropriate HTTP response code (4xx or 5xx, see swagger specification)
  * The body MUST NOT contain a `doc_id` attribute
- * etc... TODO
+ * The body MUST contain jsonapi.org-compliant error response
+ * extra error information may be provided in the response
 
-The `doc_id` returned in the body of successful POSTs (HTTP code 200 responses) is a valid content identifier. This `doc_id` is subsequently used as notarised object identifier in blockchain Gazettal. It is also the `doc_id` used in `GET /public/{doc_id}/` and `GET /private/{doc_id}/` API calls.
+The `doc_id` returned in the body of successful POSTs (HTTP code 201 responses) is a valid content identifier. This `doc_id` is subsequently used as notarised object identifier in blockchain Gazettal. It is also the `doc_id` used in `GET /public/{doc_id}/` and `GET /private/{doc_id}/` API calls. Specific `doc_id` attribute positin on the response specified by jsonapi.org protocol.
 
 
 ## Search Notary Archives
@@ -219,13 +222,13 @@ If the `durability` datetime of the notarise object is now or in the future:
 
  * Any `doc_id` listed in the response from a `GET /public/?{filter}` query MUST be available with `GET /public/{doc_id}/`
  * Any `doc_id` listed in the response from a `GET /private/?{filter}` query MUST be available with `GET /private/{doc_id}/`, if the same API token is used for both queries.
- * The notarised object MAY also be available via IPFS using the `/ipfs/{doc_id}` address.
+ * The notarised object MAY also be available via IPFS using the ipfs standalone client or any http-ipfs gateway.
 
 If the `durability` datetime of the notarised object is in the past:
 
  * Any `doc_id` listed in the response from a `GET /public/?{filter}` query MAY be available with `GET /public/{doc_id}/`, or it MAY return an HTTP 404 response.
  * Any `doc_id` listed in the response from a `GET /private/?{filter}` query MAY be available with `GET /private/{doc_id}/` (if the same API token is used for both queries), or it MAY return an HTTP 404 response.
- * The notarised object MAY also be available via IPFS using the `/ipfs/{doc_id}` address.
+ * The notarised object MAY also be available via IPFS using the ipfs standalone client or any http-ipfs gateway.
 
 
 # Blockchain Gazettal
@@ -247,7 +250,7 @@ Content-addressing is consistent with the IPFS content-addresses format, for exa
 
 The following examples assume that this address is the address of the directory-like structure that has been gazetted in the blockchain:
 
- * `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/`
+ * `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2`
 
 
 ## HOC Proof
@@ -274,10 +277,10 @@ To ensure efficient auditability of notaries, an independent observer should be 
 
 The first step in validating the Merkle-Dag is to check that the proof.json exists and is no larger than MAX_SIZE.
 
-For example, assuming the blockchain contains `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/`, the validation begins with:
+For example, assuming the blockchain contains `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2`, the validation begins with:
 
  * test for the existence of `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/proof.json`
- * if the proof.json is larger than `MAX_SIZE`, it is not valid. There is no need to download more than `MAX_SIZE + 1 byte` in this step.
+ * if the proof.json is larger than `MAX_SIZE`, it is not valid. There is no need to download more than `MAX_SIZE + 1 byte` in this step; technically it requires just several hundreds of bytes to get file size.
  * test for the existence of `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/proof.sig`
  * if the proof.sig is larger than `MAX_SIZE`, it is not valid. There is no need to download more than `MAX_SIZE + 1 byte` in this step.
 
@@ -333,9 +336,9 @@ The HOC Header is processed after the HOC Proof has been validated. It is essent
 
 The `ac_code` partially defines the protocol for accessing the record referenced in the `hoc_detail` attribute. The meaning of the `ac_code` is dependent on the `network`. In other words, the `ac_code` is interpreted in the context of the `network`.
 
-Because the network is a business identifier URN, the `ac_code` interpretation context can be determined by DCP query...
+Because the network is a business identifier URN, the `ac_code` interpretation context can be determined by DCP query.
 
-If the `network` is the URN of the notary, the DCP lookup of RECORD_ACCESS_PROTOCOL MUST return `ausdigital-nry/1` or higher version. Otherwise they can be anything (including undefined).
+If the `network` is the URN of the notary, the DCP lookup of `RECORD_ACCESS_PROTOCOL` MUST return `ausdigital-nry/1` or higher version. Otherwise they can be anything (including undefined).
 
 
 If the DCP document type / process type of the `hoc_header` list item's `network` is `ausdigital-nry/1`, then the allowable value of `ac_code` are:
@@ -355,7 +358,7 @@ note: this can be cached: when processing a HOC Header, the value of DCP lookups
 
 For each `hoc_header` list item:
 
- * If the `network` is not equal to the `proof.json` NOTARY, and if DCP lookup of RECORD ACCESS PROTOCOL for the `network` does not resolve to `ausdigital-nry/1`, then this specification does not describe how to validate that `hoc_detail` record. Refer to the appropriate protocol specification for interpretation of `ac_code` values in that context. Do not proceed with validating the listed HOC Header or any HOC Details it seems to refer to (even if the syntax seems identicacompatabledwith tal-nry/1` protocol).
+ * If the `network` is not equal to the `proof.json` NOTARY, and if DCP lookup of RECORD ACCESS PROTOCOL for the `network` does not resolve to `ausdigital-nry/1`, then this specification does not describe how to validate that `hoc_detail` record. Refer to the appropriate protocol specification for interpretation of `ac_code` values in that context. Do not proceed with validating the listed HOC Header or any HOC Details it seems to refer to (even if the syntax seems identicaly compatabled with `ausdigital-nry/1` protocol).
 
 If the `network` is equal to the `proof.json` NOTARY, or if the DCL lookup of RECORD ACCESS PROTOCOL for the `network` resolves to `ausdigital-nry/1`, then apply the following validation rules:
 
