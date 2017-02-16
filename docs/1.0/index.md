@@ -430,7 +430,7 @@ Every element in the HOC Detail list:
 The elements in the HOC Detail inherits an `ac_code` and `network` from the reference to the HOC Detail in the HOC Header.
 
 If the `ac_code` says that notarized object public then notarized object MUST be available as `/public/{content_address}`
-If the `ac_code` says that notarized object private then notarized object MUST be available ONLY as `/private/{content_address}` and ONLY to capable users (see "Validating HOC Header" section for details about private/public objects).
+If the `ac_code` says that notarized object private then notarized object MUST be available as `/private/{content_address}` to capable users (see "Validating HOC Header" section for details about private/public objects).
 
 Same is applicable for HocDetail object.
 
