@@ -118,7 +118,7 @@ Notary records are additive; the only way to change the parameters of notarisati
 
 The notary API is comprised of two REST/JSON resources, `/public/` and `/private/`. These work in similar ways, but have different access control rules. Separate endpoints are used (rather than a parameter) to minimise risk of accidentally publishing private objects ("poka-yolk" principle).
 
-Implementations  MAY be allow users to restrict client access to one or the other endpoint on a per-API token basis.
+Implementations MAY allow users to restrict client access to one or the other endpoint on a per-JWT Token basis.
 
 
 | Verb   | /public/*               | /private/*              |
@@ -203,17 +203,15 @@ There are two search interfaces:
 
 Both return a list of `doc_id`s that match the `{filter}`.
 
- * The `GET /private/?{filter}` form MUST use an API token issued by an `ausdigital-idp/1` Identity Provider.
- * The `GET /public/?{filter}` form MAY use an API token.
+ * The `GET /private/?{filter}` form MUST use an JWT Token issued by an `ausdigital-idp/1` Identity Provider.
+ * The `GET /public/?{filter}` form MAY use an JWT Token.
 
 
 The filter may inclued the following parameters:
 
- * `restrict_list=<STR>`, where <STR> is a comma separated list of URN business identifiers per `ausdigital-dcp/1`. This filter is applied to businesses in the restrict_list POST parameter of the objects. Where multiple URNs are provided, they are combined with logical AND. This parameter is optional, if not supplied the business identifier claim in the API Token JWT is used (meaning "restrict to message I am authorised to see")
+ * `restrict_list=<STR>`, where <STR> is a comma separated list of URN business identifiers per `ausdigital-dcp/1`. This filter is applied to businesses in the restrict_list POST parameter of the objects. Where multiple URNs are provided, they are combined with logical AND. This parameter is optional, if not supplied the business identifier claim in the JWT Token JWT is used (meaning "restrict to message I am authorised to see")
  * `submitted_after=<STR>`, where <STR> is an ISO 8601 datetime. Only objects after this datetime will be returned.
  * `submitted_before=<STR>`
-
-If the `restrict_list` filter is specified, but the business identifier claim in the JWT is not included in the `restrict_list` filter, then the API MUST return an 403 error response.
 
 
 ## Access Notarised Objects
@@ -221,13 +219,13 @@ If the `restrict_list` filter is specified, but the business identifier claim in
 If the `durability` datetime of the notarise object is now or in the future:
 
  * Any `doc_id` listed in the response from a `GET /public/?{filter}` query MUST be available with `GET /public/{doc_id}/`
- * Any `doc_id` listed in the response from a `GET /private/?{filter}` query MUST be available with `GET /private/{doc_id}/`, if the same API token is used for both queries.
+ * Any `doc_id` listed in the response from a `GET /private/?{filter}` query MUST be available with `GET /private/{doc_id}/`, if the same JWT Token is used for both queries.
  * The notarised object MAY also be available via IPFS using the ipfs standalone client or any http-ipfs gateway.
 
 If the `durability` datetime of the notarised object is in the past:
 
  * Any `doc_id` listed in the response from a `GET /public/?{filter}` query MAY be available with `GET /public/{doc_id}/`, or it MAY return an HTTP 404 response.
- * Any `doc_id` listed in the response from a `GET /private/?{filter}` query MAY be available with `GET /private/{doc_id}/` (if the same API token is used for both queries), or it MAY return an HTTP 404 response.
+ * Any `doc_id` listed in the response from a `GET /private/?{filter}` query MAY be available with `GET /private/{doc_id}/` (if the same JWT Token is used for both queries), or it MAY return an HTTP 404 response.
  * The notarised object MAY also be available via IPFS using the ipfs standalone client or any http-ipfs gateway.
 
 
@@ -322,12 +320,12 @@ After verifying proof.json with proof.sig, it is safe to process the HOC Header
 
 The HOC Header is processed after the HOC Proof has been validated. It is essentially an arbitrarily long list of references to HOC Detail records. It also contains metadata about access and availability of HOC Detail records.
 
- * The Full HOC (directory-like content-address, gazetted to the blockchain) MUST contain a file with a valid content-address, that is referenced by the `hoc_head` attribute of `proof.json` (the `hoc_head` file)
+ * The Full HOC (or HocArchive, directory-like structure with content-address gazetted to the blockchain) MAY contain a file with a valid content-address, that is referenced by the `hoc_head` attribute of `proof.json` (the `hoc_head` file)
  * The contents of the `hoc_head` file MUST be json that is valid per [`hoc_head.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/hoc_head.schema) JSON schema
  * `hoc_head` MUST contain a list of one or more elements.
- * Each element in `hoc_head` list MUST contain a `hoc_detail`attribute, which is a valid content-address of a file.
+ * Each element in `hoc_head` list MUST contain a `hoc_detail` attribute, which is a valid content-address of a json file.
  * Each element in `hoc_head` list MUST contain a `durability` attribute.
- * The value of `durability` attribute MUST be an ISO 8601 formatted string describing the DATE until which the HOC Detail is promised available.
+ * The value of `durability` attribute MUST be an ISO 8601 formatted string describing the date and time with timezone until which the HOC Detail is promised available.
  * Each element in `hoc_head` list MUST contain a `network` attribute.
  * The value of `network` attribute MUST be a valid business identifier URN per the DCP and DCL specifications.
  * Each element in `hoc_head` list MUST contain an `ac_code` attribute.
@@ -339,7 +337,6 @@ The `ac_code` partially defines the protocol for accessing the record referenced
 Because the network is a business identifier URN, the `ac_code` interpretation context can be determined by DCP query.
 
 If the `network` is the URN of the notary, the DCP lookup of `RECORD_ACCESS_PROTOCOL` MUST return `ausdigital-nry/1` or higher version. Otherwise they can be anything (including undefined).
-
 
 If the DCP document type / process type of the `hoc_header` list item's `network` is `ausdigital-nry/1`, then the allowable value of `ac_code` are:
 
@@ -358,33 +355,45 @@ note: this can be cached: when processing a HOC Header, the value of DCP lookups
 
 For each `hoc_header` list item:
 
- * If the `network` is not equal to the `proof.json` NOTARY, and if DCP lookup of RECORD ACCESS PROTOCOL for the `network` does not resolve to `ausdigital-nry/1`, then this specification does not describe how to validate that `hoc_detail` record. Refer to the appropriate protocol specification for interpretation of `ac_code` values in that context. Do not proceed with validating the listed HOC Header or any HOC Details it seems to refer to (even if the syntax seems identicaly compatabled with `ausdigital-nry/1` protocol).
+ * If the `network` is not equal to the `proof.json` NOTARY, and if DCP lookup of `RECORD_ACCESS_PROTOCOL` for the `network` does not resolve to `ausdigital-nry/1`, then this specification does not describe how to validate that `hoc_detail` record. Refer to the appropriate protocol specification for interpretation of `ac_code` values in that context. Do not proceed with validating the listed HOC Header or any HOC Details it seems to refer to (even if the syntax seems identicaly compatabled with `ausdigital-nry/1` protocol).
 
-If the `network` is equal to the `proof.json` NOTARY, or if the DCL lookup of RECORD ACCESS PROTOCOL for the `network` resolves to `ausdigital-nry/1`, then apply the following validation rules:
+If the `network` is equal to the `proof.json` NOTARY, or if the DCL lookup of `RECORD_ACCESS_PROTOCOL` for the `network` resolves to `ausdigital-nry/1`, then apply the following validation rules:
 
 
 If `ac_code` is 0 or 1:
 
- * If the `hoc_header` item `durability` is a future date, the content-address MUST be directly available (for example `/ipfs/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`
+ * If the `hoc_header` item `durability` is a future date, the content-address of the `hoc_detail` object MUST be directly available (for example `/ipfs/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`
  * If the `hoc_header` item `durability` is a future date, and the `proof.json` `durability` is also a future date, the content address MAY be available within the directory-like container of the Full HOC (for example `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`)
 
 
 If `ac_code` is 2 or 3:
 
- * If the `hoc_header` item `durability` is a future date, and the API Token has valid identity claim, the content-address MAY be available via the notary API (`GET /private/{content_address}`).
- * If the `hoc_header` item `durability` is a future date, and the API Token has valid identity claim, and the API Token identity claim matches the `proof.json` NOTARY, the content-address MUST be available via the notary API (`GET /private/{content_address}/`).
+ * If the `hoc_header` item `durability` is a future date, and the JWT Token has valid identity claim, the content-address MAY be available via the notary API (`GET /private/{content_address}`).
+ * If the `hoc_header` item `durability` is a future date, and the JWT Token has valid identity claim, and the JWT Token identity claim matches the `proof.json` NOTARY, the content-address MUST be available via the notary API (`GET /private/{content_address}/`).
  To the business identity of the `network`, the content-address MUST be available via the notary API (`GET /private/{content_address}`).
 
 
-When notarised objects are submitted to the notary API with `ac_code` 1, 2 or 3 (e.g. `POST {object+params} /private/`), the `restrict_list` parameter contains a list of business identifiers permitted to access the object. This restrict_list lists the business identifiers of all parties with rights to access the record.
+When notarised objects are submitted to the notary API with `ac_code` referring to private objects (see table) (e.g. `POST {object+params} /private/`), the `restrict_list` parameter contains a list of business identifiers permitted to access the object. This restrict_list lists the business identifiers of all parties with rights to access the record.
 
-When notarised objects are submitted to the notary API with `ac_code` 1, the `restrict_list` attribute only applies to the notarised object. When notarised objects are submitted to the notary API with `ac_code` 2 or 3, the `restrict_list` parameter MUST be applied to both the `hoc_detail` and the notarised object. This means:
+`restrict_list` only applies to private objects (see ac_code table above).
 
- * If the `hoc_header` item `durability` is a future date, and the API Token has valid identity claim, and the API Token identity claim matches one of the identities in the records `restrict_list`, and the `ac_code` is 3, then the `hoc_detail` content-address MUST be available via the notary API (`GET /private/{content_address}/`)
- * If the `hoc_header` item `durability` is a future date, and the API Token has valid identity claim, and the `ac_code` is 1, 2 or 3; then the `hoc_detail` content-address MUST be available via the notary API (`GET /public/{content_address}/`)
- * **TODO**: cross reference API spec (request notarisation on the API)
- * **TODO**: ensure API spec includes `ac_code` parameter (validate if /private/ `ac_code` in (2,3), if /public/ `ac_code` in (0,1), if `ac_code==0` `restrict_list` empty (no restrictions), if `ac_code!=0` `restrict_list` must not be empty).
+If object is public (object - HocDetail or notarized document itself):
 
+ * item MUST be available as /public/{content_address}/ before durability date
+ * item MAY be available as /public/{content_address}/ after durability date
+
+If object is private:
+
+ * item MUST be available only to client with valid JWT token with valid identity claim and this identity claim can be found in target object restrict_list
+ * item MUST NOT be available for any other client
+ * item MUST be available as /private/{content_address}/ before durability date for users who can see it
+ * item MAY be available as /private/{content_address}/ after durability date for users who can see it
+ * item MUST NOT be available as /public/{content_address}/ for any user
+ * item MUST NOT be published to public IPFS or any other network by this notarizer (3rd party still can do it if it has access to it)
+
+ **TODO**: cross reference API spec (request notarisation on the API)
+
+ **TODO**: ensure API spec includes `ac_code` parameter (validate if /private/ `ac_code` in (2,3), if /public/ `ac_code` in (0,1), if `ac_code==0` `restrict_list` empty (no restrictions), if `ac_code!=0` `restrict_list` must not be empty).
 
 
 ### Notary Reputation
@@ -415,13 +424,15 @@ Every element in the HOC Detail list:
 
  * MUST contain a `durability` attribute, which contains an ISO 8601 formatted date string.
  * The `durability` date MUST NOT be less than one month ahead of the `proof.json` SIG_DATE attribute.
- * The `durability` date MUST NOT be less than the corresponding `hoc_header` durability date.
+ * The `durability` date MUST NOT be more than the corresponding `hoc_header` durability date.
  * MUST contain an `object` attribute, which contains a content-address of some notarised object.
 
 The elements in the HOC Detail inherits an `ac_code` and `network` from the reference to the HOC Detail in the HOC Header.
 
- * If the inherited `ac_code` is "0", and `proof.json` NOTARY identifies the same business as the inherited `network`, and the listed `durability` date is in the future, then the `object` this HOC Detail must be available through the API (e.g. `GET /public/{content_address}`)
- * If the inherited `ac_code` is "1", "2" or "3"; and `proof.json` NOTARY identifies the same business as the inherited `network`, and the listed `durability` date is in the future, and the API Token has a valid identity claim, and the identity in the API token identifies a business in the restrict_list of the object, then the `object` this HOC Detail MUST be available through the API (e.g. `GET /private/{content_address}`)
+If the `ac_code` says that notarized object public then notarized object MUST be available as `/public/{content_address}`
+If the `ac_code` says that notarized object private then notarized object MUST be available ONLY as `/private/{content_address}` and ONLY to capable users (see "Validating HOC Header" section for details about private/public objects).
+
+Same is applicable for HocDetail object.
 
 
  # Related Material
