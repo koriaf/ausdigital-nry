@@ -167,7 +167,6 @@ The `param.json` file:
 * The `durability` date MUST be not less than one month in the future
 * MUST contain a `network` attribute that is a valid business identifier URN per `ausdigital-dcp/1` specification.
 * MUST contain an `ac_code` attribute, that is a non-negative integer for the given specification.
-* MAY contain an `restrict_list` attribute, that is a JSON list of zero or more elements that are valid business identifier URNs per `ausdigital-dcp/1`.
 * If the `network` value is a business identifier of the notary itself, then the `ac_code` MUST be interpreted per `ausdigital-nry/1`.
 * If the `network` value is not a business identifier of the notary:
     * the `ac_code` MAY be interpreted as `ac_code` = 3.
@@ -175,6 +174,31 @@ The `param.json` file:
     * the Notary API resource must be `/private/` (alternate `network`s MUST NOT be used with the `/public/` resource).
 * For given `ac_code` object `private` or `public` namespace must be equal to described in ac_code table in "HOC Header" section.
 
+For `ac_code == 0` (public document, public hoc_details):
+
+* `restrict_list` parameter MUST NOT be provided (because it's pointless)
+
+For `ac_code != 0`:
+
+* `restrict_list` parameter is required
+* `restrict_list` contains list of participant identifiers (which MAY be empty)
+* user MAY include himself to `restrict_list` to be able to access this document
+
+For `ac_code == 1` or `3` (private document):
+
+* `restrict_list` MUST be provided
+* `restrict_list` participants can access this notarized document
+
+For `ac_code == 2` or `3` (private HocDetil):
+
+* `restrict_list` MUST be provided
+* `restrict_list` contains list of participant identifiers which can access this HocDetail
+* HocDetail final `restrict_list` consists of all participant identifiers from all `restrict_list` from all documents
+* if HocDetail is private and notarized document is public then document `restrict_list` used only to limit HocDetail access, notarized document is still public and can be accessed by anyone without any authentication.
+
+Note: if object is private and `restrict_list` is empty (even document owner not included) then even initial document sender can't access this document, which makes it useful for some circumstances. Implementations MAY issue warning in this case. Initial user MAY post document again with different restricted_list or make it directly available to public (by IPFS or whatever).
+
+Note: if `restrict_list` of public document is filled and HocDetail is private and `restrict_list` is empty then this `restrict_list` doesn't affect HocDetail `restrict_list` (which is made from all restrict_lists of all documents in HocDetail), but it's theoretically possible that that HocDetail object will be available to other parties (TODO: looks silly).
 
 When the notary receives a valid notarisation request, if it doesn't refuse the request and doesn't experience technical difficulties, then it MUST:
 
@@ -206,12 +230,20 @@ Both return a list of `doc_id`s that match the `{filter}`.
  * The `GET /private/?{filter}` form MUST use an JWT Token issued by an `ausdigital-idp/1` Identity Provider.
  * The `GET /public/?{filter}` form MAY use an JWT Token.
 
+The filter may include the following parameters:
 
-The filter may inclued the following parameters:
+* `restrict_list=<STR>`, where <STR> is a comma separated list of URN business identifiers per `ausdigital-dcp/1`
+If not supplied the business identifier claim in the JWT Token JWT is used (meaning "restrict to message I am authorised to see")
+* `submitted_after=<STR>`, where <STR> is an ISO 8601 datetime. Only objects after this datetime will be returned.
+* `submitted_before=<STR>`
 
- * `restrict_list=<STR>`, where <STR> is a comma separated list of URN business identifiers per `ausdigital-dcp/1`. This filter is applied to businesses in the restrict_list POST parameter of the objects. Where multiple URNs are provided, they are combined with logical AND. This parameter is optional, if not supplied the business identifier claim in the JWT Token JWT is used (meaning "restrict to message I am authorised to see")
- * `submitted_after=<STR>`, where <STR> is an ISO 8601 datetime. Only objects after this datetime will be returned.
- * `submitted_before=<STR>`
+`restrict_list` filter parameter is optional and:
+
+* applicable only to private objects
+* not applicable to public objects (ignored)
+* contains comma-separated list of 1 or more elements
+* applied to businesses in the restrict_list POST parameter of the objects
+* where multiple URNs are provided, they are combined with logical AND.
 
 
 ## Access Notarised Objects
@@ -372,28 +404,25 @@ If `ac_code` is 2 or 3:
  * If the `hoc_header` item `durability` is a future date, and the JWT Token has valid identity claim, and the JWT Token identity claim matches the `proof.json` NOTARY, the content-address MUST be available via the notary API (`GET /private/{content_address}/`).
  To the business identity of the `network`, the content-address MUST be available via the notary API (`GET /private/{content_address}`).
 
+When notarised objects are submitted to the notary API with `ac_code` referring to private objects (see table) (e.g. `ac_code > 0`), the `restrict_list` parameter contains a list of business identifiers permitted to access the object. This restrict_list lists the business identifiers of all parties with rights to access the record.
 
-When notarised objects are submitted to the notary API with `ac_code` referring to private objects (see table) (e.g. `POST {object+params} /private/`), the `restrict_list` parameter contains a list of business identifiers permitted to access the object. This restrict_list lists the business identifiers of all parties with rights to access the record.
+`restrict_list` only applies to private objects (see ac_code table above, items where HocDetail or notarized document is private).
 
-`restrict_list` only applies to private objects (see ac_code table above).
+For any object:
 
-If object is public (object - HocDetail or notarized document itself):
-
- * item MUST be available as /public/{content_address}/ before durability date
- * item MAY be available as /public/{content_address}/ after durability date
+* item MUST be available as /public|private/{content_address} before durability date
+* item MAY be available as /public|private/{content_address} after durability date
 
 If object is private:
 
- * item MUST be available only to client with valid JWT token with valid identity claim and this identity claim can be found in target object restrict_list
- * item MUST NOT be available for any other client
- * item MUST be available as /private/{content_address}/ before durability date for users who can see it
- * item MAY be available as /private/{content_address}/ after durability date for users who can see it
- * item MUST NOT be available as /public/{content_address}/ for any user
- * item MUST NOT be published to public IPFS or any other network by this notarizer (3rd party still can do it if it has access to it)
+* item MUST be available only to client with valid JWT token with valid identity claim and this identity claim can be found in target object restrict_list
+* item MUST NOT be available for any other client (but other item with different restrictions but same doc_id may be available in its place)
+* item MUST NOT be available as /public/{content_address}/ for any other user
+* item MUST NOT be published to public IPFS or any other network by this notarizer (3rd party still can do it if it has access to it)
 
- **TODO**: cross reference API spec (request notarisation on the API)
+**TODO**: cross reference API spec (request notarisation on the API)
 
- **TODO**: ensure API spec includes `ac_code` parameter (validate if /private/ `ac_code` in (2,3), if /public/ `ac_code` in (0,1), if `ac_code==0` `restrict_list` empty (no restrictions), if `ac_code!=0` `restrict_list` must not be empty).
+**TODO**: ensure API spec includes `ac_code` parameter (validate if /private/ `ac_code` in (2,3), if /public/ `ac_code` in (0,1), if `ac_code==0` `restrict_list` empty (no restrictions), if `ac_code!=0` `restrict_list` must not be empty).
 
 
 ### Notary Reputation
