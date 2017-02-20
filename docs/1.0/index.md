@@ -74,6 +74,15 @@ This service depends on `ausdigital-dcl/1`, `ausdigital-dcp/1` and `ausdigital-i
 
 The `ausdigital-tap` specification depends on this document. Note, while this specification describes a generic notary interface, the TAP specification provides further restriction on the use of the notary.
 
+**TODO**: add all used terms here
+
+* content-address - some address/individual identification token, which depends only on item (file) content and uniquely identifies this item
+* Merkle-DAG - tree-like data structure, where top node refers its children by their content-address
+* IPFS - InterPlanetary File System - infrastucture to store item with their SHA-256 hashes as top-level content address. If item is a directory then it may contain subdirectories and files with their readable names, but referencing is being performing by content-address anyway.
+* QmHash, Ipfs Hash - 46-characters value starting with `Qm`, representing the SHA-256 sum of the given item (where item is a file, directory structure or block). Source SHA-256 value encoded by (**TODO**: what does it called, hash to QmStuff?)
+* Notary Archive, HOC Archive - directory-like structure with proof.json and proof.sig files
+* HOC Header - file/json structure, referenced from proof.json file in HOC Archive by its content-address
+* HOC Detail - file/json structure, referenced either from the HOC Header or another HOC Detail (in case of nested HOC Details).
 
 ## Licence
 
@@ -186,19 +195,19 @@ For `ac_code != 0`:
 
 For `ac_code == 1` or `3` (private document):
 
+* `ac_code != 0` rules applied
 * `restrict_list` MUST be provided
 * `restrict_list` participants can access this notarized document
 
 For `ac_code == 2` or `3` (private HocDetil):
 
+* `ac_code != 0` rules applied
 * `restrict_list` MUST be provided
 * `restrict_list` contains list of participant identifiers which can access this HocDetail
-* HocDetail final `restrict_list` consists of all participant identifiers from all `restrict_list` from all documents
+* HocDetail final `restrict_list` consists of all participant identifiers from all `restrict_list` from all documents and nested HocDetails.
 * if HocDetail is private and notarized document is public then document `restrict_list` used only to limit HocDetail access, notarized document is still public and can be accessed by anyone without any authentication.
 
-Note: if object is private and `restrict_list` is empty (even document owner not included) then even initial document sender can't access this document, which makes it useful for some circumstances. Implementations MAY issue warning in this case. Initial user MAY post document again with different restricted_list or make it directly available to public (by IPFS or whatever).
-
-Note: if `restrict_list` of public document is filled and HocDetail is private and `restrict_list` is empty then this `restrict_list` doesn't affect HocDetail `restrict_list` (which is made from all restrict_lists of all documents in HocDetail), but it's theoretically possible that that HocDetail object will be available to other parties (TODO: looks silly).
+Note: if object is private and `restrict_list` is empty (even document owner not included) then even initial document sender can't access this document, which makes it useful for some circumstances. Implementations MAY issue warning in this case. Initial user MAY post document again with different restricted_list or make it available elsewhere.
 
 When the notary receives a valid notarisation request, if it doesn't refuse the request and doesn't experience technical difficulties, then it MUST:
 
@@ -215,7 +224,7 @@ When the notary receives an invalid notarisation request, or if it receives a va
  * The body MUST contain jsonapi.org-compliant error response
  * extra error information may be provided in the response
 
-The `doc_id` returned in the body of successful POSTs (HTTP code 201 responses) is a valid content identifier. This `doc_id` is subsequently used as notarised object identifier in blockchain Gazettal. It is also the `doc_id` used in `GET /public/{doc_id}/` and `GET /private/{doc_id}/` API calls. Specific `doc_id` attribute positin on the response specified by jsonapi.org protocol.
+The `doc_id` returned in the body of successful POSTs (HTTP code 201 responses) is a valid content identifier. This `doc_id` is subsequently used as notarised object identifier in blockchain Gazettal. It is also the `doc_id` used in `GET /public/{doc_id}/` and `GET /private/{doc_id}/` API calls. Specific `doc_id` attribute position on the response specified by jsonapi.org protocol.
 
 
 ## Search Notary Archives
@@ -345,14 +354,15 @@ Assuming you have imported the verified valid key into the GnuPG program, and ha
 gpg2 --verify proof.sig proof.json
 ```
 
-After verifying proof.json with proof.sig, it is safe to process the HOC Header
+After verifying proof.json with proof.sig, it is safe to process the HOC Header.
 
 
 ## HOC Header
 
 The HOC Header is processed after the HOC Proof has been validated. It is essentially an arbitrarily long list of references to HOC Detail records. It also contains metadata about access and availability of HOC Detail records.
 
- * The Full HOC (or HocArchive, directory-like structure with content-address gazetted to the blockchain) MAY contain a file with a valid content-address, that is referenced by the `hoc_head` attribute of `proof.json` (the `hoc_head` file)
+ * The HOC Archive proof.json file MUST contain reference to (content-address of) single HOC Header
+ * the HOC Header MUST be available by `/private/{content_hash}` or `/public/{content_hash}` endpoint
  * The contents of the `hoc_head` file MUST be json that is valid per [`hoc_head.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/hoc_head.schema) JSON schema
  * `hoc_head` MUST contain a list of one or more elements.
  * Each element in `hoc_head` list MUST contain a `hoc_detail` attribute, which is a valid content-address of a json file.
@@ -361,8 +371,10 @@ The HOC Header is processed after the HOC Proof has been validated. It is essent
  * Each element in `hoc_head` list MUST contain a `network` attribute.
  * The value of `network` attribute MUST be a valid business identifier URN per the DCP and DCL specifications.
  * Each element in `hoc_head` list MUST contain an `ac_code` attribute.
- * The HOC Header MAY be published directly with its content-address (e.g. `/ipfs/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`).
+ * The HOC Header MUST be available directly with its content-address (e.g. `/ipfs/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`).
  * The HOC Header MAY be published with its content-address as its name within the directory-like collection that was gazetted to the blockchain (e.g. `/ipfs/QmS5EogHn2MtSBsQ4wXFEPeiA1zWPfaEbumWEJJNsUWuW2/Qmcov9Bx5SiAT281UmCQUCyGUKU2VFYYSK31XqXq8S8edu`).
+
+IPFS note: if you follow last item (publish HOC Header indirectly, as a part of the HOC Archive) then previous one (direct accessibility) will be fulfilled automatically.
 
 The `ac_code` partially defines the protocol for accessing the record referenced in the `hoc_detail` attribute. The meaning of the `ac_code` is dependent on the `network`. In other words, the `ac_code` is interpreted in the context of the `network`.
 
@@ -443,26 +455,63 @@ In addition to global objective notary reputation (which can be based on transpa
 
 ## HOC Detail
 
-The HOC Detail is a JSON document of arbitrary size, referenced by its content-address in the HOC Header list.
+The HOC Detail is a JSON document of arbitrary size, referenced by its content-address in the HOC Header list or from another HOC Detail.
 
+ * The HOC Detail MUST inherit `ac_code` and `network` attributes from the reference to this HOC Detail
  * The HOC Detail MUST contain a list of one or more elements.
  * The HOC Detail MUST be validated against the [`hoc_detail.schema`](https://github.com/ausdigital/ausdigital-nry/blob/master/resources/1.0/spec/hoc_detail.schema) JSON schema.
 
+The elements in any given HOC Detail inherit an `ac_code` and `network` from this HOC Detail, and HOC Detail receives these values from reference to it (from HOC Header for top-level HOC Detail or from parent HOC Detail for nested).
+Every element in the HOC Detail list MUST reference either individual notarized document OR nested HOC Detail.
 
-Every element in the HOC Detail list:
+In any case, HOC Detail row:
 
  * MUST contain a `durability` attribute, which contains an ISO 8601 formatted date string.
  * The `durability` date MUST NOT be less than one month ahead of the `proof.json` SIG_DATE attribute.
  * The `durability` date MUST NOT be more than the corresponding `hoc_header` durability date.
- * MUST contain an `object` attribute, which contains a content-address of some notarised object.
 
-The elements in the HOC Detail inherits an `ac_code` and `network` from the reference to the HOC Detail in the HOC Header.
+If reference to a notarized object, HOC Detail row:
+ * MUST contain an `object` attribute, which contains a content-address of some notarised object.
+ * MUST assume that given object inherits `network` and `ac_code` from this HOC Detail
+
+If reference to a nested HOC Detail, referencing HOC Detail row:
+
+ * MUST contain `hoc_detail` attribute with valid content-hash of referenced HOC Detail
+ * MUST assume that referenced HOC Detail receives the same `ac_code` and `network` as this referencing HOC Detail
+ * MAY ommit `ac_code` and `network` parameters (because they are equal to top-level).
+ * client MAY recursive follow referenced HOC Detail if client interested in data in it (and have access)
+
+HOC Detail `restrict_list`:
+
+ * MUST not affect it's availability if HOC Detail is public
+ * MUST limit access if HOC Detail is private
+ * MUST contain any item from any referenced element (either netsted HOC Detail or notarized object)
+
+Example of HOC Detail, which references objects and nested Hoc Details:
+
+    ```
+    [
+      {
+          "object": "QmNotarizedObject001ContentAddress",
+          "durability": "2018-03-10T00:00:00+00:00"
+      },
+      {
+          "object": "QmAnotherNotarizedObjectContentAddress",
+          "durability": "2018-03-10T00:00:00+00:00"
+      },
+      {
+        "hoc_detail": "QmNestedHocHeaderContentAddress",
+        "durability": "2019-03-10T00:00:00+00:00"
+      },
+      ....
+    ]
+    ```
+
+If given HOC Detail example is referenced with `ac_code = X` and `network = "urn:XXXX"` then any item here (QmNotarizedObject001ContentAddress, QmAnotherNotarizedObjectContentAddress, QmNestedHocHeaderContentAddress) inherit it. See real-world examples from nry.testpoint.io for more information.
 
 If the `ac_code` says that notarized object public then notarized object MUST be available as `/public/{content_address}`
 If the `ac_code` says that notarized object private then notarized object MUST be available as `/private/{content_address}` to capable users (see "Validating HOC Header" section for details about private/public objects).
-
 Same is applicable for HocDetail object.
-
 
  # Related Material
 
