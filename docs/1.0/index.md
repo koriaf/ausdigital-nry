@@ -3,7 +3,7 @@ title: "AusDigital Notary (NRY) 1.0 Specification"
 specID: "ausdigital-nry/1"
 status: "![raw](http://rfc.unprotocols.org/spec:2/COSS/raw.svg)"
 editors: "[Chris Gough](mailto:christopher.d.gough@gmail.com)"
-contributors:
+contributors: "[Arkadiy Korotaev](mailto:korotaev@arkadiy.net)"
 ---
 
 ## Introduction
@@ -422,8 +422,8 @@ When notarised objects are submitted to the notary API with `ac_code` referring 
 
 For any object:
 
-* item MUST be available as /public|private/{content_address} before durability date
-* item MAY be available as /public|private/{content_address} after durability date
+* item MUST be available as `/public|private/{content_address}` before durability date
+* item MAY be available as `/public|private/{content_address}` after durability date
 
 If object is private:
 
@@ -489,7 +489,6 @@ HOC Detail `restrict_list`:
 
 Example of HOC Detail, which references objects and nested Hoc Details:
 
-    ```
     [
       {
           "object": "QmNotarizedObject001ContentAddress",
@@ -505,7 +504,6 @@ Example of HOC Detail, which references objects and nested Hoc Details:
       },
       ....
     ]
-    ```
 
 If given HOC Detail example is referenced with `ac_code = X` and `network = "urn:XXXX"` then any item here (QmNotarizedObject001ContentAddress, QmAnotherNotarizedObjectContentAddress, QmNestedHocHeaderContentAddress) inherit it. See real-world examples from nry.testpoint.io for more information.
 
